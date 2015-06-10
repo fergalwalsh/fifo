@@ -23,6 +23,11 @@ EXPIRED = 'expired'
 
 
 class FifoClient(object):
+    COMPLETED = COMPLETED
+    TIMEOUT = TIMEOUT
+    ERROR = ERROR
+    EXPIRED = EXPIRED
+
     def __init__(self, broker):
         self.redis = Redis.from_url(broker)
 
@@ -79,29 +84,32 @@ class FifoWorker(object):
         value = self.redis.brpop(self.queue)
         if value:
             task = loads(value[1])
-            logger.info("Task %s (%s) received ",
-                        task['id'], task['function'])
-            q_time = time.time() - task['time']
+            received_time = time.time()
+            q_time = received_time - task['time']
+            logger.info("Task %s (%s) received (waited %0.2fs)",
+                        task['id'], task['function'], q_time)
             if q_time > task['max_wait']:
                 # Task has waited in the queue for more than the specified max
                 logger.info('Task %s (%s) expired (waited %0.2fs) ',
                             task['id'], task['function'], q_time)
+                task_result = {'status': EXPIRED, 'body': None}
             else:
                 task_function = getattr(self.tasks_module, task['function'])
                 try:
                     result = task_function(*task['args'])
                     task_result = {'status': COMPLETED, 'body': result}
+                    run_time = time.time() - received_time
                     logger.info('Task %s (%s) completed (%0.2fs)',
-                                task['id'], task['function'], q_time)
+                                task['id'], task['function'], run_time)
                 except Exception:
                     logger.exception('Task %s (%s) raised an exception: ',
                                      task['id'], task['function'])
                     tb = traceback.format_exc()
                     task_result = {'status': ERROR, 'body': str(tb)}
                 # if result_timeout <= 0 the client isn't waiting for a result
-                if task['result_timeout'] > 0:
-                    self.redis.lpush(task['id'], dumps(task_result))
-                    self.redis.expire(task['id'], task['result_timeout'])
+            if task['result_timeout'] > 0:
+                self.redis.lpush(task['id'], dumps(task_result))
+                self.redis.expire(task['id'], task['result_timeout'])
 
     def run(self):
         logger.info("Broker: %s", self.broker)
