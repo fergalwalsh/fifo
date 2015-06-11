@@ -6,7 +6,7 @@ import cPickle as pickle
 from importlib import import_module
 from redis import Redis
 
-logging.basicConfig(format=('%(asctime)s %(levelname)s pid-%(process)d '
+logging.basicConfig(format=('%(levelname)s %(asctime)s fifo pid-%(process)d '
                             '%(message)s'),
                     level=logging.DEBUG)
 
@@ -103,7 +103,8 @@ class FifoWorker(object):
                                 task['id'], task['function'], run_time)
                 except Exception:
                     logger.exception('Task %s (%s) raised an exception: ',
-                                     task['id'], task['function'])
+                                     task['id'], task['function'],
+                                     exc_info=True)
                     tb = traceback.format_exc()
                     task_result = {'status': ERROR, 'body': str(tb)}
                 # if result_timeout <= 0 the client isn't waiting for a result
@@ -119,7 +120,7 @@ class FifoWorker(object):
             try:
                 self.process_one()
             except Exception, e:
-                logger.exception(e)
+                logger.exception(e, exc_info=True)
 
 
 class TimeoutException(Exception):
