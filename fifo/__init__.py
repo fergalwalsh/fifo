@@ -1,3 +1,6 @@
+__author__ = 'Fergal Walsh'
+__version__ = '0.0.1'
+
 import time
 import uuid
 import logging
