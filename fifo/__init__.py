@@ -104,9 +104,11 @@ class FifoWorker(object):
                     run_time = time.time() - received_time
                     logger.info('Task %s (%s) completed (%0.2fs)',
                                 task['id'], task['function'], run_time)
-                except Exception:
-                    logger.exception('Task %s (%s) raised an exception: ',
-                                     task['id'], task['function'],
+                except Exception as e:
+                    run_time = time.time() - received_time
+                    logger.exception('Task %s (%s) raised an exception'
+                                     ' (%0.2fs): %s',
+                                     task['id'], task['function'], run_time, e,
                                      exc_info=True)
                     tb = traceback.format_exc()
                     task_result = {'status': ERROR, 'body': str(tb)}
