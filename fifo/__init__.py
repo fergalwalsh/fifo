@@ -9,11 +9,27 @@ import cPickle as pickle
 from importlib import import_module
 from redis import Redis
 
-logging.basicConfig(format=('%(levelname)s %(asctime)s fifo pid-%(process)d '
-                            '%(message)s'),
-                    level=logging.DEBUG)
+
+class ExceptionFormatter(logging.Formatter):
+    def formatException(self, exc_info):
+        result = super(ExceptionFormatter, self).formatException(exc_info)
+        return repr(result)
+
+    def format(self, record):
+        s = super(ExceptionFormatter, self).format(record)
+        if record.exc_text:
+            s = s.replace('\n', '')
+        return s
+
 
 logger = logging.getLogger('fifo')
+logger.setLevel(logging.DEBUG)
+handler = logging.StreamHandler()
+handler.setLevel(logging.DEBUG)
+fmt = '%(levelname)s %(asctime)s fifo pid-%(process)d %(message)s'
+formatter = ExceptionFormatter(fmt)
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 loads = pickle.loads
 dumps = pickle.dumps
@@ -73,6 +89,12 @@ class FifoClient(object):
                     results[task_id] = loads(task_result)
                     task_ids.remove(task_id)
         return results
+
+    def len(self, queue):
+        return self.redis.llen(queue)
+
+    def purge(self, queue):
+        return self.redis.delete(queue)
 
 
 class FifoWorker(object):
