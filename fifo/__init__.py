@@ -5,7 +5,10 @@ import time
 import uuid
 import logging
 import traceback
-import cPickle as pickle
+try:
+   import cPickle as pickle
+except:
+   import pickle
 from importlib import import_module
 from redis import Redis
 
@@ -146,7 +149,7 @@ class FifoWorker(object):
         while True:
             try:
                 self.process_one()
-            except Exception, e:
+            except Exception as e:
                 logger.exception(e, exc_info=True)
 
 
